@@ -1,18 +1,12 @@
+from pydantic import BaseModel
 from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+class DataModel(BaseModel):
+    data: str
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8080"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.get("/")
-def home():
-    return "Hello, World!"
+@app.post("/api/send_data")
+async def send_data(data: DataModel):
+    print(data)
+    return {"message": "Данные получены"}

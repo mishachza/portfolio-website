@@ -1,6 +1,6 @@
 <template>
   <div class="container">
-    <h1>ВСЁ ХОРОШО.</h1>
+    <button class="btn" @click="sendData"><h1>ВСЁ ХОРОШО.</h1></button>
     <a href="https://t.me/alrightalright" class="telegram-link">
       <!-- <img src="@/assets/telegram-fill.svg" alt="Telegram" width="48" height="48" class="telegram-icon"> -->
     </a>
@@ -8,9 +8,23 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   name: 'App',
-}
+  methods: {
+    async sendData() {
+      try {
+        const response = await axios.post('http://localhost:8000/api/send_data', {
+          data: 'Данные отправлены из приложения Vue.js',
+        });
+        console.log(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    },
+  },
+};
 </script>
 
 <style scoped>
@@ -23,8 +37,13 @@ export default {
   font-family: 'IBM Plex Sans JP', sans-serif;
 }
 
+.btn {
+  border: 0px;
+  background-color: transparent;
+}
+
 h1 {
-  font-size: 48px;
+  font-size: 36px;
   cursor: pointer;
 }
 
