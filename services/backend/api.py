@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import config
 from main import bot
-from services.backend.config import TELEGRAM_BOT_TOKEN
+
 
 app = FastAPI()
 api_router = APIRouter()
@@ -55,7 +55,7 @@ async def validate_telegram_data(init_data: str) -> bool:
     data_check_string = '\n'.join(f"{key}={unquote(value[0])}" for key, value in sorted_items)
 
     # Генерируем секретный ключ с использованием HMAC-SHA256
-    secret_key = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+    secret_key = hmac.new(b"WebAppData", config.TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
 
     # Вычисляем HMAC-SHA256 для строки data-check с использованием секретного ключа
     calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
