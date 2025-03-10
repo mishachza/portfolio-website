@@ -1,17 +1,17 @@
-from typing import Dict
+import time
 import hashlib
 import hmac
-import urllib.parse
+from urllib.parse import parse_qs, unquote
 import asyncio
 import logging
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, status
+from fastapi import FastAPI, APIRouter, status
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 
 import config
 from main import bot
-
+from services.backend.config import TELEGRAM_BOT_TOKEN
 
 app = FastAPI()
 api_router = APIRouter()
@@ -31,36 +31,37 @@ class ValidationResponse(BaseModel):
     isValid: bool
 
 
-def validate_telegram_data(init_data: str) -> bool:
-    try:
-        # Шаг 1: Декодирование URL-encoded строки
-        query_params = urllib.parse.parse_qs(init_data)
+async def validate_telegram_data(init_data: str) -> bool:
+    """
+    Проверяет данные initData, полученные от Telegram Mini App.
 
-        # Шаг 2: Сортировка параметров
-        sorted_params = sorted([(k, v[0]) for k, v in query_params.items()])
+    :param init_data: Строка query string из Telegram.WebApp.initData.
+    :param TELEGRAM_BOT_TOKEN: Токен вашего Telegram-бота.
+    :return: True, если данные валидны, иначе False.
+    """
+    # Разбираем строку init_data в словарь
+    data = parse_qs(init_data)
 
-        # Шаг 3: Исключение hash
-        hash_value = None
-        data_params = []
-        for k, v in sorted_params:
-            if k == 'hash':
-                hash_value = v
-            else:
-                data_params.append(f"{k}={v}")
+    # Извлекаем hash и удаляем его из данных для проверки
+    hash_value = data.pop('hash')[0]
 
-        # Шаг 4: Формирование тела
-        data_string = "\n".join(data_params)
-
-        # Шаг 5: HMAC-SHA256
-        secret_key = hashlib.sha256(config.TELEGRAM_BOT_TOKEN.encode()).digest()
-        calculated_hash = hmac.new(secret_key, data_string.encode(), hashlib.sha256).hexdigest()
-
-        # Шаг 6: Сравнение хэшей
-        return calculated_hash == hash_value
-
-    except Exception as e:
-        print(f"Ошибка валидации: {e}")
+    # Проверяем поле auth_date, чтобы убедиться, что данные не устарели
+    auth_date = int(data['auth_date'][0])
+    if time.time() - auth_date > 3600:  # Проверяем, что данные не старше 1 часа
         return False
+
+    # Создаем строку data-check
+    sorted_items = sorted(data.items())
+    data_check_string = '\n'.join(f"{key}={unquote(value[0])}" for key, value in sorted_items)
+
+    # Генерируем секретный ключ с использованием HMAC-SHA256
+    secret_key = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode(), hashlib.sha256).digest()
+
+    # Вычисляем HMAC-SHA256 для строки data-check с использованием секретного ключа
+    calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+
+    # Сравниваем вычисленный хэш с полученным хэшем
+    return calculated_hash == hash_value
 
 
 class InitDataRequest(BaseModel):
@@ -70,7 +71,7 @@ class InitDataRequest(BaseModel):
 @api_router.post("/api/validate_init_data", response_model=ValidationResponse)
 async def validate_init_data_endpoint(request: InitDataRequest):
     logging.info(request)
-    is_valid = validate_telegram_data(request.initData)
+    is_valid = await validate_telegram_data(request.initData)
     if is_valid:
         message = "Данные валидны."
     else:

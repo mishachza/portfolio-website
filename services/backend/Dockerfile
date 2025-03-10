@@ -5,10 +5,7 @@ WORKDIR /app
 COPY . .
 
 RUN pip install -r requirements.txt
-RUN apt-get update && apt-get install -y supervisor
-
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 5000
 
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port 5000 & python main.py"]
